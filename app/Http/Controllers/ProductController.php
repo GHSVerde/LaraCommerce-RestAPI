@@ -2,19 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\Product\ProductCollection;
 use App\Model\Product;
 use Illuminate\Http\Request;
-use App\Http\Resources\Product\ProductResource;
 use App\Http\Requests\ProductRequest;
+use App\Exceptions\ProductDontBelongsToUser;
 use Symfony\Component\HttpFoundation\Response;
+use App\Http\Resources\Product\ProductResource;
+use App\Http\Resources\Product\ProductCollection;
+use Auth;
+
 
 class ProductController extends Controller
 {
 
     public function __construct()
     {
-        // $this->middleware('auth:api')->except('index','show','store');
+        $this->middleware('auth:api')->except('index','show');
     }
     /**
      * Display a listing of the resource.
@@ -86,14 +89,21 @@ class ProductController extends Controller
      * @param  \App\Model\Product  $product
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Product $product)
+    public function update( Request $request, Product $product)
     {
+        $this->productUserCheck($product);
         $request['detail'] = $request->description;
         unset($request['description']);
         $product->update($request->all());
         return response([
             'data' => new ProductResource($product)
         ],RESPONSE::HTTP_CREATED);
+    }
+
+    public function productUserCheck($product) {
+        if(Auth::id() != $product->user_id ) {
+            throw new ProductDontBelongsToUser;
+        }
     }
 
     /**
@@ -104,6 +114,7 @@ class ProductController extends Controller
      */
     public function destroy(Product $product)
     {
+        $this->productUserCheck($product);
         $product->delete();
         return response(null,RESPONSE::HTTP_NO_CONTENT);
     }
